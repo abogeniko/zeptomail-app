@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZeptoMail Bulk Dispatcher</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-purple-950 to-slate-900 min-h-screen text-slate-100 flex items-center justify-center p-4">
+
+    <div class="max-w-xl w-full bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-2xl overflow-hidden p-8">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-teal-400 to-indigo-400 bg-clip-text text-transparent">ZeptoMail Hub</h1>
+            <p class="text-slate-400 text-sm mt-2">Bulk Transactional Mailer via Cloudflare Pages & ZeptoMail API</p>
+        </div>
+
+        <form id="mailForm" class="space-y-5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- From -->
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">From Email</label>
+                    <input type="email" id="from" required placeholder="noreply@yourdomain.com" 
+                        class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500 transition">
+                </div>
+                <!-- Display Name -->
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Display Name</label>
+                    <input type="text" id="displayName" placeholder="Company Support" 
+                        class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500 transition">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Reply To -->
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Reply-To</label>
+                    <input type="email" id="replyTo" placeholder="support@yourdomain.com" 
+                        class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500 transition">
+                </div>
+            </div>
+
+            <!-- To (Bulk Input) -->
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Recipients (To)</label>
+                <textarea id="to" rows="3" required placeholder="user1@domain.com, user2@domain.com&#10;or place each email on a new line" 
+                    class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500 transition"></textarea>
+                <p class="text-xs text-slate-500 mt-1">Separate multiple email addresses with commas or new lines (up to 500 per request).</p>
+            </div>
+
+            <!-- Subject -->
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Subject</label>
+                <input type="text" id="subject" required placeholder="Your weekly digest or announcement..." 
+                    class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500 transition">
+            </div>
+
+            <!-- Message -->
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Message Content</label>
+                <textarea id="message" rows="4" required placeholder="Write your message details here..." 
+                    class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-teal-500 transition"></textarea>
+            </div>
+
+            <!-- File Upload -->
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Attachment (Optional)</label>
+                <input type="file" id="fileUpload" 
+                    class="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-teal-500/10 file:text-teal-400 hover:file:bg-teal-500/20 file:cursor-pointer transition">
+            </div>
+
+            <!-- Send Button -->
+            <button type="submit" id="sendBtn" 
+                class="w-full mt-2 py-3 px-4 bg-gradient-to-r from-teal-500 to-indigo-600 hover:from-teal-400 hover:to-indigo-500 text-white font-semibold rounded-lg shadow-lg shadow-teal-500/20 focus:outline-none focus:ring-2 focus:ring-teal-400 transition transform active:scale-[0.99]">
+                Send Email
+            </button>
+        </form>
+
+        <!-- Notification Banner -->
+        <div id="statusMessage" class="hidden mt-4 p-3 rounded-lg text-sm text-center"></div>
+    </div>
+
+    <script>
+        document.getElementById('mailForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('sendBtn');
+            const status = document.getElementById('statusMessage');
+            
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+            status.className = 'hidden mt-4 p-3 rounded-lg text-sm text-center';
+
+            const formData = new FormData();
+            formData.append('from', document.getElementById('from').value);
+            formData.append('displayName', document.getElementById('displayName').value);
+            formData.append('replyTo', document.getElementById('replyTo').value);
+            formData.append('to', document.getElementById('to').value);
+            formData.append('subject', document.getElementById('subject').value);
+            formData.append('message', document.getElementById('message').value);
+            
+            const fileInput = document.getElementById('fileUpload').files[0];
+            if (fileInput) {
+                formData.append('file', fileInput);
+            }
+
+            try {
+                const response = await fetch('/api/send', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+
+                status.classList.remove('hidden');
+                if (response.ok) {
+                    status.classList.add('bg-emerald-500/10', 'border', 'border-emerald-500/20', 'text-emerald-400');
+                    status.textContent = `Success! Dispatched to ${result.count} recipient(s).`;
+                    document.getElementById('mailForm').reset();
+                } else {
+                    throw new Error(result.error || 'Failed to send bulk email');
+                }
+            } catch (err) {
+                status.classList.remove('hidden');
+                status.classList.add('bg-rose-500/10', 'border', 'border-rose-500/20', 'text-rose-400');
+                status.textContent = 'Error: ' + err.message;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Send Email';
+            }
+        });
+    </script>
+</body>
+</html>
